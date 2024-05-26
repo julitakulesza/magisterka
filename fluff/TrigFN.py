@@ -468,8 +468,10 @@ def empirical_size(sample_pairs, dist_1, dist_2, test_statistic, num_tests=1000)
     summary_table = df.groupby(['sample_size1', 'sample_size2']).agg(empirical_size=('empirical_size', 'mean')).reset_index()
     return summary_table
 
-def calculate_power(dist, delta_1, delta_2, differences, test_statistic, 
-                    sample_size=50,  num_tests=1000, num_permutations=1000, return_power = False):
+def calculate_power(dist, delta_1, delta_2, differences, 
+                    test_statistic, sample_size=100,  
+                    num_tests=1000, num_permutations=1000, 
+                    return_power = False):
     
     dist1_name = dist['name']
     dist1_params = dist['params']
@@ -509,7 +511,8 @@ def calculate_power(dist, delta_1, delta_2, differences, test_statistic,
         results = []
         
         results.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
+            'distribution': dist1_name, 
+            'parameters': dist1_params,
             'differences': differences,
             'empirical_power': powers
                 })
@@ -522,8 +525,6 @@ def calculate_power_eps(dist, delta_1, delta_2, mixture_proportions, shift, test
     
     dist1_name = dist['name']
     dist1_params = dist['params']
-
-    dist2_params = dist1_params.copy()
     
     powers = []
     for proportion in mixture_proportions:        
@@ -532,7 +533,7 @@ def calculate_power_eps(dist, delta_1, delta_2, mixture_proportions, shift, test
 
             # Generate samples
             sample1 = generate_TFN(dist1_name, delta_1, delta_2, sample_size,if_mixture=False, **dist1_params)
-            sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, if_mixture=True, mixture_proportion=proportion, shift=shift, **dist2_params)  # Increase mean for sample 2
+            sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, if_mixture=True, mixture_proportion=proportion, shift=shift, **dist1_params)  # Increase mean for sample 2
             
             # Perform permutation test
             p_value = permutation_test(sample1, sample2, test_statistic, num_permutations=num_permutations)
@@ -555,8 +556,10 @@ def calculate_power_eps(dist, delta_1, delta_2, mixture_proportions, shift, test
     if return_power:
         results = []
         
+
         results.append({
-            'parameters': [dist, delta_1, delta_2],
+            'distribution': dist1_name, 
+            'parameters': dist1_params,
             'mixture_proportions': mixture_proportions,
             'empirical_power': powers
                 })
@@ -613,80 +616,53 @@ def calculate_power_sigma(dist, delta_1, delta_2, differences, test_statistic,
         df = pd.DataFrame(results)
         return df
     
-def calculate_multiple_powers(dist, delta_1, delta_2, differences, sample_size=50, num_tests=1000, num_permutations=1000, return_power=False):
-    powers_TFN = []
-    powers_Pgrzeg = []
-    powers_KNN = []
-    powers_szekely = []
-    powers_milena = []
-    powers_kozak = []
+def calculate_multiple_powers(dist, delta_1, delta_2, differences, sample_size=50, num_tests=1000, 
+                                num_permutations=1000, return_power=False, selected_tests=None):
+    
+    powers = {f'{test}': [] for test in selected_tests}
     
     dist1_name = dist['name']
     dist1_params = dist['params']
-
     dist2_params = dist1_params.copy()
     
     for difference in differences:
-        # Initialize counters for rejections
-        rejections_TFN = 0
-        rejections_Pgrzeg = 0
-        rejections_KNN = 0
-        rejections_szekely = 0
-        rejections_milena = 0
-        rejections_kozak = 0
+        
+        rejections = {f'{test}': 0 for test in selected_tests}
         
         for _ in range(num_tests):
-            # Generate samples
             
             sample1 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist1_params)
+            dist2_params['loc'] =  dist1_params['loc'] + difference
+            sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist2_params) 
+            for test in selected_tests:
+                if test == 'knn':
+                    p_value = permutation_test_knn(sample1, sample2, num_permutations=num_permutations)
 
-            dist2_params['loc'] = dist1_params['loc'] + difference
-            sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist2_params)  # Increase mean for sample 2
+                if test == 'jkulesza':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic, num_permutations=num_permutations)
+                    
+                if test == 'pgrzeg':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_pgrzeg, num_permutations=num_permutations)
 
-            # Calculate p-values for different tests
-            p_value = permutation_test(sample1, sample2, TFN_statistic, num_permutations=num_permutations)
-            p_value2 = permutation_test(sample1, sample2, TFN_statistic_pgrzeg, num_permutations=num_permutations)
-            p_value3 = permutation_test_knn(sample1, sample2, num_permutations=num_permutations)
-            p_value4 = permutation_test(sample1, sample2, TFN_statistic_szekely, num_permutations=num_permutations)
-            p_value5 = permutation_test(sample1, sample2, TFN_statistic_milena, num_permutations=num_permutations)
-            p_value6 = permutation_test(sample1, sample2, TFN_statistic_kozak, num_permutations=num_permutations)
+                if test == 'gszekely':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_szekely, num_permutations=num_permutations)
+                        
+                if test == 'mzacharczuk':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_milena, num_permutations=num_permutations)
 
-            # Check if p-value is less than or equal to 0.05 for each test
-            if p_value <= 0.05:
-                rejections_TFN += 1
-            if p_value2 <= 0.05:
-                rejections_Pgrzeg += 1
-            if p_value3 <= 0.05:
-                rejections_KNN += 1
-            if p_value4 <= 0.05:
-               rejections_szekely += 1
-            if p_value5 <= 0.05:
-               rejections_milena += 1
-            if p_value6 <= 0.05:
-               rejections_kozak += 1
-        
-        # Calculate power for each test
-        power_TFN = rejections_TFN / num_tests
-        power_Pgrzeg = rejections_Pgrzeg / num_tests
-        power_KNN = rejections_KNN / num_tests
-        power_szekely = rejections_szekely / num_tests
-        power_milena = rejections_milena / num_tests
-        power_kozak = rejections_kozak / num_tests
-        
-        powers_TFN.append(power_TFN)
-        powers_Pgrzeg.append(power_Pgrzeg)
-        powers_KNN.append(power_KNN)
-        powers_szekely.append(power_szekely)
-        powers_milena.append(power_milena)
-        powers_kozak.append(power_kozak)
+                if test == 'akozak':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_kozak, num_permutations=num_permutations)
 
-    # Plot power vs difference between means for all tests
-    plt.plot(differences, powers_TFN, 'r', label="jkulesza")
-    plt.plot(differences, powers_Pgrzeg, 'g--', label="pgrzeg")
-    plt.plot(differences, powers_KNN, 'b', label="knn")
-    plt.plot(differences, powers_szekely, 'm:', label="gszekely")
-    plt.plot(differences, powers_szekely, 'c-.', label="mzacharczuk")
-    plt.plot(differences, powers_kozak, 'orange', label="akozak")
+                if p_value <= 0.05:
+                    rejections[test] += 1
+
+        for test in selected_tests:        
+            powers[test].append(rejections[test] / num_tests)
+
+    colors = {"jkulesza":"r", "pgrzeg":"g", "knn":"b", "gszekely":"m", "mzacharczuk":"c", "akozak":"orange"}
+    for test in selected_tests: 
+        plt.plot(differences, powers[test], colors[test], label = test)
+
     plt.xlabel("$\mu_2-\mu_1$", fontsize=16)
     plt.ylabel("Moc", fontsize=16)
     plt.title("Krzywe mocy", fontsize=16)
@@ -696,55 +672,19 @@ def calculate_multiple_powers(dist, delta_1, delta_2, differences, sample_size=5
 
     if return_power:
 
-        results_TFN = []
-        results_Pgrzeg = []
-        results_KNN = []
-        results_szekely = []
-        results_milena = []
-        results_kozak = []
+        results = {f'{test}': [] for test in selected_tests}
+        dfs = {f'{test}': [] for test in selected_tests}
 
-        
-        results_TFN.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
-            'differences': differences,
-            'empirical_power': powers_TFN
-        })
-        
-        results_Pgrzeg.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
-            'differences': differences,
-            'empirical_power': powers_Pgrzeg
-        })
-        
-        results_KNN.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
-            'differences': differences,
-            'empirical_power': powers_KNN
-        })
+        for test in selected_tests:
 
-        results_szekely.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
-            'differences': differences,
-            'empirical_power': powers_szekely
-        })
+            results[test].append({
+                'dist': dist1_name,
+                'parameters': dist1_params,
+                'differences': differences,
+                'empirical_power': powers[test]
+                })
 
-        results_milena.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
-            'differences': differences,
-            'empirical_power': powers_milena
-        })
-
-        results_kozak.append({
-            'parameters': [mu, sigma, delta_1, delta_2],
-            'differences': differences,
-            'empirical_power': powers_kozak
-        })
+            dfs[test] = pd.DataFrame(results[test])        
         
-        df_TFN = pd.DataFrame(results_TFN)
-        df_Pgrzeg = pd.DataFrame(results_Pgrzeg)
-        df_KNN = pd.DataFrame(results_KNN)
-        df_szekely = pd.DataFrame(results_szekely)
-        df_milena = pd.DataFrame(results_milena)
-        df_kozak = pd.DataFrame(results_kozak)
         
-        return df_TFN, df_Pgrzeg, df_KNN, df_szekely, df_milena, df_kozak
+        return dfs
