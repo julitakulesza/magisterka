@@ -94,7 +94,7 @@ def mean_TFN(tfns):
 
     return TriangularFuzzyNumber(mean_a, mean_b, mean_c)
 
-def generate_TFN(dist, delta_1=0.6, delta_2=0.6, sample_size=50, plot =False, if_mixture=False, shift=0, mixture_proportion=0.5, **params):
+def generate_TFN(dist, delta_1=0.6, delta_2=0.6, sample_size=25, plot =False, if_mixture=False, shift=0, mixture_proportion=0.5, **params):
 
     dist_obj = getattr(stats, dist)
     tfns = []
@@ -144,27 +144,27 @@ def generate_TFN(dist, delta_1=0.6, delta_2=0.6, sample_size=50, plot =False, if
 
     return tfns
 
-def TFN_credibility_index(tfn1: TriangularFuzzyNumber, tfn2: TriangularFuzzyNumber):
+# def TFN_credibility_index(tfn1: TriangularFuzzyNumber, tfn2: TriangularFuzzyNumber):
         
-    a1 = tfn1.a
-    b1 = tfn1.b
-    c1 = tfn1.c
-    a2 = tfn2.a
-    b2 = tfn2.b
-    c2 = tfn2.c
+#     a1 = tfn1.a
+#     b1 = tfn1.b
+#     c1 = tfn1.c
+#     a2 = tfn2.a
+#     b2 = tfn2.b
+#     c2 = tfn2.c
 
-    if b1 < b2 and c1 <= a2:
-        return 0.0
-    elif b1 < b2 and c1 > a2:
-        h = (c1*b2 - a2*b1)/(b2-a2-b1+c1)
-        return (h-c1)/(2* (b1-c1))
-    elif b1 == b2:
-        return 0.5
-    elif b1 > b2 and a1 < c2:
-        h = (a1*b2 - c2*b1)/(b2-c2-b1+a1)
-        return 1-(h-a1)/(2* (b1-a1))
-    elif b1 > b2 and a1 >= c2:
-        return 1
+#     if b1 < b2 and c1 <= a2:
+#         return 0.0
+#     elif b1 < b2 and c1 > a2:
+#         h = (c1*b2 - a2*b1)/(b2-a2-b1+c1)
+#         return (h-c1)/(2* (b1-c1))
+#     elif b1 == b2:
+#         return 0.5
+#     elif b1 > b2 and a1 < c2:
+#         h = (a1*b2 - c2*b1)/(b2-c2-b1+a1)
+#         return 1-(h-a1)/(2* (b1-a1))
+#     elif b1 > b2 and a1 >= c2:
+#         return 1
     
 def TFN_energy_distance(tfn1: TriangularFuzzyNumber, tfn2: TriangularFuzzyNumber, theta: float = 1):
     
@@ -269,19 +269,19 @@ def TFN_statistic_szekely(sample1, sample2):
     return statistic
     
 
-def TFN_statistic_milena(sample1, sample2):
-    n = len(sample1)
-    m = len(sample2)
+# def TFN_statistic_milena(sample1, sample2):
+#     n = len(sample1)
+#     m = len(sample2)
 
-    statistic =  0 
+#     statistic =  0 
     
-    for tfn_x_1 in sample1:
-        for tfn_y_2 in sample2:
+#     for tfn_x_1 in sample1:
+#         for tfn_y_2 in sample2:
 
-            credibility_index = TFN_credibility_index(tfn_x_1, tfn_y_2)
-            statistic  += credibility_index
+#             credibility_index = TFN_credibility_index(tfn_x_1, tfn_y_2)
+#             statistic  += credibility_index
 
-    return statistic
+#     return statistic
 
 def TFN_statistic_knn(sample1, sample2, k=5):
 
@@ -628,29 +628,30 @@ def calculate_multiple_powers(dist, delta_1, delta_2, differences, sample_size=5
     for difference in differences:
         
         rejections = {f'{test}': 0 for test in selected_tests}
-        
+    
+
         for _ in range(num_tests):
             
             sample1 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist1_params)
             dist2_params['loc'] =  dist1_params['loc'] + difference
             sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist2_params) 
             for test in selected_tests:
-                if test == 'knn':
+                if test == 'knnT':
                     p_value = permutation_test_knn(sample1, sample2, num_permutations=num_permutations)
 
-                if test == 'jkulesza':
+                if test == 'L2T':
                     p_value = permutation_test(sample1, sample2, TFN_statistic, num_permutations=num_permutations)
                     
-                if test == 'pgrzeg':
+                if test == 'fANOVA':
                     p_value = permutation_test(sample1, sample2, TFN_statistic_pgrzeg, num_permutations=num_permutations)
 
-                if test == 'gszekely':
+                if test == 'EDT':
                     p_value = permutation_test(sample1, sample2, TFN_statistic_szekely, num_permutations=num_permutations)
                         
-                if test == 'mzacharczuk':
-                    p_value = permutation_test(sample1, sample2, TFN_statistic_milena, num_permutations=num_permutations)
+                # if test == 'mzacharczuk':
+                #     p_value = permutation_test(sample1, sample2, TFN_statistic_milena, num_permutations=num_permutations)
 
-                if test == 'akozak':
+                if test == 'supT':
                     p_value = permutation_test(sample1, sample2, TFN_statistic_kozak, num_permutations=num_permutations)
 
                 if p_value <= 0.05:
@@ -659,7 +660,7 @@ def calculate_multiple_powers(dist, delta_1, delta_2, differences, sample_size=5
         for test in selected_tests:        
             powers[test].append(rejections[test] / num_tests)
 
-    colors = {"jkulesza":"r", "pgrzeg":"g", "knn":"b", "gszekely":"m", "mzacharczuk":"c", "akozak":"orange"}
+    colors = {"L2T":"#FF3131", "fANOVA":"#77AC30", "knnT":"#7E2F8E", "EDT":"#4DBEEE", "supT":"#0072BD"}
     for test in selected_tests: 
         plt.plot(differences, powers[test], colors[test], label = test)
 
@@ -681,6 +682,237 @@ def calculate_multiple_powers(dist, delta_1, delta_2, differences, sample_size=5
                 'dist': dist1_name,
                 'parameters': dist1_params,
                 'differences': differences,
+                'empirical_power': powers[test]
+                })
+
+            dfs[test] = pd.DataFrame(results[test])        
+        
+        
+        return dfs
+
+def calculate_multiple_powers_eps(dist, delta_1, delta_2, mixture_proportions, shift, sample_size=50, num_tests=1000, 
+                                num_permutations=1000, return_power=False, selected_tests=None):
+    
+    powers = {f'{test}': [] for test in selected_tests}
+    
+    dist1_name = dist['name']
+    dist1_params = dist['params']
+    
+    for proportion in mixture_proportions:   
+        
+        rejections = {f'{test}': 0 for test in selected_tests}
+        for _ in range(num_tests):
+            
+            sample1 = generate_TFN(dist1_name, delta_1, delta_2, sample_size,if_mixture=False, **dist1_params)
+            sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, if_mixture=True, mixture_proportion=proportion, shift=shift, **dist1_params) 
+
+            for test in selected_tests:
+                if test == 'knnT':
+                    p_value = permutation_test_knn(sample1, sample2, num_permutations=num_permutations)
+
+                if test == 'L2T':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic, num_permutations=num_permutations)
+                    
+                if test == 'fANOVA':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_pgrzeg, num_permutations=num_permutations)
+
+                if test == 'EDT':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_szekely, num_permutations=num_permutations)
+                        
+                # if test == 'mzacharczuk':
+                #     p_value = permutation_test(sample1, sample2, TFN_statistic_milena, num_permutations=num_permutations)
+
+                if test == 'supT':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_kozak, num_permutations=num_permutations)
+
+                if p_value <= 0.05:
+                    rejections[test] += 1
+
+        for test in selected_tests:        
+            powers[test].append(rejections[test] / num_tests)
+
+    colors = {"L2T":"#FF3131", "fANOVA":"#77AC30", "knnT":"#7E2F8E", "EDT":"#4DBEEE", "supT":"#0072BD"}
+    for test in selected_tests: 
+        plt.plot(mixture_proportions, powers[test], colors[test], label = test)
+
+    plt.xlabel("$\epsilon $", fontsize=16)
+    plt.ylabel("Moc", fontsize=16)
+    plt.title("Krzywe mocy", fontsize=16)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    if return_power:
+
+        results = {f'{test}': [] for test in selected_tests}
+        dfs = {f'{test}': [] for test in selected_tests}
+
+        for test in selected_tests:
+
+            results[test].append({
+                'dist': dist1_name,
+                'parameters': dist1_params,
+                'mixture_proportions': mixture_proportions,
+                'empirical_power': powers[test]
+                })
+
+            dfs[test] = pd.DataFrame(results[test])        
+        
+        
+        return dfs    
+
+def calculate_multiple_powers_sigma(dist, delta_1, delta_2, differences, sample_size=50, num_tests=1000, 
+                                num_permutations=1000, return_power=False, selected_tests=None):
+    
+    powers = {f'{test}': [] for test in selected_tests}
+    
+    dist1_name = dist['name']
+    dist1_params = dist['params']
+    dist2_params = dist1_params.copy()
+    
+    for difference in differences:
+        
+        rejections = {f'{test}': 0 for test in selected_tests}
+        
+        for _ in range(num_tests):
+            
+            sample1 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist1_params)
+
+            dist2_params['scale'] = dist1_params['scale'] + difference
+            sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist2_params)  
+
+            for test in selected_tests:
+                if test == 'knnT':
+                    p_value = permutation_test_knn(sample1, sample2, num_permutations=num_permutations)
+
+                if test == 'L2T':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic, num_permutations=num_permutations)
+                    
+                if test == 'fANOVA':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_pgrzeg, num_permutations=num_permutations)
+
+                if test == 'EDT':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_szekely, num_permutations=num_permutations)
+                        
+                # if test == 'mzacharczuk':
+                #     p_value = permutation_test(sample1, sample2, TFN_statistic_milena, num_permutations=num_permutations)
+
+                if test == 'supT':
+                    p_value = permutation_test(sample1, sample2, TFN_statistic_kozak, num_permutations=num_permutations)
+
+                if p_value <= 0.05:
+                    rejections[test] += 1
+
+        for test in selected_tests:        
+            powers[test].append(rejections[test] / num_tests)
+
+    colors = {"L2T":"#FF3131", "fANOVA":"#77AC30", "knnT":"#7E2F8E", "EDT":"#4DBEEE", "supT":"#0072BD"}
+    for test in selected_tests: 
+        plt.plot(differences, powers[test], colors[test], label = test)
+
+    plt.xlabel("$ \sigma_2-\sigma_1$", fontsize=16)
+    plt.ylabel("Moc", fontsize=16)
+    plt.title("Krzywe mocy", fontsize=16)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    if return_power:
+
+        results = {f'{test}': [] for test in selected_tests}
+        dfs = {f'{test}': [] for test in selected_tests}
+
+        for test in selected_tests:
+
+            results[test].append({
+                'dist': dist1_name,
+                'parameters': dist1_params,
+                'sigma differences': differences,
+                'empirical_power': powers[test]
+                })
+
+            dfs[test] = pd.DataFrame(results[test])        
+        
+        
+        return dfs
+    
+
+def calculate_multiple_powers_frechet(dist, delta_1, delta_2, d_frechet, linspace_n, sample_size=50, num_tests=1000, 
+                                num_permutations=1000, return_power=False, selected_tests=None):
+    
+    powers = {f'{test}': [] for test in selected_tests}
+    
+    dist1_name = dist['name']
+    dist1_params = dist['params']
+    dist2_params = dist1_params.copy()
+    
+
+    differences = np.linspace(0,d_frechet,linspace_n)
+    
+    for difference in differences:
+
+        dmu = [difference*np.cos(np.pi/6), difference*np.cos(np.pi/4), difference*np.cos(np.pi/3)]
+        dsigma = [difference*np.sin(np.pi/6), difference*np.sin(np.pi/4), difference*np.sin(np.pi/3)]
+        
+        rejections = {f'{test}': [0,0,0] for test in selected_tests}
+        
+        for _ in range(num_tests):
+            
+            sample1 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist1_params)
+
+            for i, _ in enumerate(dmu):
+                dist2_params['scale'] = dist1_params['scale'] + dsigma[i]
+                dist2_params['loc'] = dist1_params['loc'] + dmu[i]
+            
+                sample2 = generate_TFN(dist1_name, delta_1, delta_2, sample_size, **dist2_params)  
+
+                for test in selected_tests:
+                    if test == 'knnT':
+                        p_value = permutation_test_knn(sample1, sample2, num_permutations=num_permutations)
+
+                    if test == 'L2T':
+                        p_value = permutation_test(sample1, sample2, TFN_statistic, num_permutations=num_permutations)
+                        
+                    if test == 'fANOVA':
+                        p_value = permutation_test(sample1, sample2, TFN_statistic_pgrzeg, num_permutations=num_permutations)
+
+                    if test == 'EDT':
+                        p_value = permutation_test(sample1, sample2, TFN_statistic_szekely, num_permutations=num_permutations)
+                            
+                    if test == 'supT':
+                        p_value = permutation_test(sample1, sample2, TFN_statistic_kozak, num_permutations=num_permutations)
+
+                    if p_value <= 0.05:
+                        rejections[test][i] += 1
+
+        for test in selected_tests:        
+            powers[test].append(np.array(rejections[test])/ num_tests)
+
+    colors = {"L2T":"#FF3131", "fANOVA":"#77AC30", "knnT":"#7E2F8E", "EDT":"#4DBEEE", "supT":"#0072BD"}
+    for test in selected_tests: 
+        p = np.array(powers[test])
+        plt.plot(differences, p[:,0], '-',  color=colors[test], label = test)
+        plt.plot(differences, p[:,1], '--', color=colors[test])
+        plt.plot(differences, p[:,2], ':',  color=colors[test])
+
+    plt.xlabel("$\sqrt{\Delta \mu ^2 + \Delta \sigma ^2}$", fontsize=16)
+    plt.ylabel("Moc", fontsize=16)
+    plt.title("Krzywe mocy", fontsize=16)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    if return_power:
+
+        results = {f'{test}': [] for test in selected_tests}
+        dfs = {f'{test}': [] for test in selected_tests}
+
+        for test in selected_tests:
+
+            results[test].append({
+                'dist': dist1_name,
+                'parameters': dist1_params,
+                'frechet distance': differences,
                 'empirical_power': powers[test]
                 })
 
